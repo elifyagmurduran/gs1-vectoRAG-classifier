@@ -1,0 +1,100 @@
+version: "2.0"
+
+# === Pipeline Metadata ===
+pipeline:
+  name: "gs1-vectoRAG-classifier"
+  description: "RAG pipeline for GS1 GPC product classification via vector similarity and LLM inference"
+
+# === System Settings ===
+system:
+  log_level: "INFO"
+  max_workers: 5
+  batch_size: 256
+  retry:
+    max_attempts: 3
+    backoff_factor: 1.5
+    min_wait: 30.0
+    max_wait: 120.0
+
+# === Source Data (for build-vectors) ===
+source:
+  type: "file_json"
+  path: "data/input/GS1.json"
+  encoding: "utf-8"
+  parser: "gs1"
+  batch_size: 50
+
+# === Embedding Provider (shared by all modes) ===
+# Secrets (api_key, endpoint, deployment, api_version) live in .env only.
+embedding:
+  type: "azure_openai"
+  dimensions: 1024
+  batch_size: 256
+  max_workers: 5
+
+# === Vector Store (build-vectors + classify) ===
+vector_store:
+  type: "faiss"
+  output_dir: "data/vector_store"
+  filename_prefix: "gs1"
+  lookup_metadata_fields:
+    - level
+    - code
+    - title
+    - hierarchy_path
+    - hierarchy_string
+
+# === Database (embed-rows + classify) ===
+# Secrets (server, database, credentials) live in .env only.
+database:
+  type: "azure_sql"
+  schema_name: "playground"
+  table: "promo_bronze"
+  primary_key: "id"
+
+# === Row Embedding (embed-rows) ===
+row_embedding:
+  batch_size: 50
+  columns:
+    - store
+    - country
+    - product_name
+    - product_name_en
+    - category
+    - packaging_type
+    - packaging_value
+    - packaging_unit
+  separator: " * "
+  target_column: "embedding_context"
+
+# === LLM Provider (classify) ===
+# Secrets (api_key, endpoint, deployment, api_version) live in .env only.
+llm:
+  type: "azure_openai"
+  max_completion_tokens: 4096
+
+# === Classification / RAG (classify) ===
+classification:
+  rag_top_k: 30
+  batch_size: 10
+  # prompt_columns: columns fetched from the DB and shown to the LLM in the prompt.
+  # These are NOT used by the FAISS search — RAG always uses the pre-computed
+  # embedding_context vector. Keep this aligned with row_embedding.columns so the
+  # LLM sees the same rich product info that was encoded into the embedding.
+  prompt_columns:
+    - store
+    - country
+    - product_name
+    - product_name_en
+    - packaging_type
+    - packaging_value
+    - packaging_unit
+  target_columns:
+    - gs1_segment
+    - gs1_family
+    - gs1_class
+    - gs1_brick
+    - gs1_attribute
+    - gs1_attribute_value
+  system_template_file: "templates/gs1_system.j2"
+  prompt_template_file: "templates/gs1_classification.j2"

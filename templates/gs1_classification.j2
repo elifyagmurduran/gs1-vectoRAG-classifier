@@ -1,0 +1,12 @@
+Classify the following {{ products | length }} product(s) into GS1 GPC categories.
+
+{% for product in products %}
+--- Product {{ product.product_id }} ---
+{% for key, value in product.context.items() %}{% if value %}{{ key }}: {{ value }}
+{% endif %}{% endfor %}
+Candidate categories:
+{% for candidate in product.candidates %}[{{ candidate.letter }}] {{ candidate.hierarchy_string }}{% if candidate.attributes %} | {{ candidate.attributes | map(attribute='title') | join(', ') }}{% endif %}
+{% endfor %}
+{% endfor %}
+Respond with a JSON object containing a "results" key:
+{"results": [{"product_id": <id>, "choice": "<letter>"}, ...]}

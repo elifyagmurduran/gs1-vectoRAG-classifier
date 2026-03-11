@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gs1-vectoRAG-classifier"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "YAML-configurable RAG pipeline that classifies products against the GS1 GPC taxonomy using vector similarity and LLM inference"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
